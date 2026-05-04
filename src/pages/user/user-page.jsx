@@ -1,57 +1,89 @@
 import axios from "axios";
-import { Offcanvas } from "bootstrap";
+import { Modal, Offcanvas } from "bootstrap";
 import { useEffect, useRef, useState } from "react";
 
 function UserPage() {
-  const [listUsers, setListUsers] = useState([])
+  const [listUsers, setListUsers] = useState([]);
+  const [userDelete, setUserDelete] = useState({});
 
+  const deleteUserModalRef = useRef();
+  const createUserOffcanvasRef = useRef();
 
-  const createUserOffcanvas = useRef();
+  function initDeleteUserModal() {
+    const modalElement = document.getElementById("delete-user-modal");
+    const modal = new Modal(modalElement);
+    deleteUserModalRef.current = modal;
+  }
+
+  function toggleDeleteUserModal() {
+    deleteUserModalRef.current.toggle();
+  }
 
   function initCreateUserOffcanvas() {
     const offcanvasElement = document.getElementById("createUserOffcanvas");
     const offcanvas = new Offcanvas(offcanvasElement, { backdrop: true });
-    createUserOffcanvas.current = offcanvas
+    createUserOffcanvasRef.current = offcanvas;
   }
 
   function toggleCreateUserOffcanvas() {
-    createUserOffcanvas.current.toggle()
+    deleteUserModalRef.current.toggle();
+  }
+
+  function deleteUserModal(user) {
+    setUserDelete(user);
+    toggleDeleteUserModal();
+  }
+
+  function deleteUser() {
+    axios.delete(`http://localhost:3000/user/${userDelete.id}`)
+      .then((response) => {
+        console.log(response)
+        toggleDeleteUserModal();
+        getUsers();
+      })
+      .catch((error) => {
+        console.log(error.response)
+      })
   }
 
   function getUsers() {
-    axios.get('http://localhost:3000/users')
+    axios
+      .get("http://localhost:3000/users")
       .then((response) => {
-        setListUsers(response.data)
-      }).catch((error) => {
-        console.warn(error)
+        setListUsers(response.data);
       })
+      .catch((error) => {
+        console.warn(error);
+      });
   }
 
   function createUser() {
-    const formCreateUser = document.getElementById('form-create-user')
-    const formData = new FormData(formCreateUser)
-    const data = Object.fromEntries(formData)
+    const formCreateUser = document.getElementById("form-create-user");
+    const formData = new FormData(formCreateUser);
+    const data = Object.fromEntries(formData);
 
     axios
-      .post('http://localhost:3000/user', data)
+      .post("http://localhost:3000/user", data)
       .then((response) => {
         if (response.status !== 201) {
-          console.log(response)
-          return
+          console.log(response);
+          return;
         }
 
-        formCreateUser.reset()
-        toggleCreateUserOffcanvas()
-        getUsers()
-      }).catch((error) => {
-        console.warn("catch", error.response)
+        formCreateUser.reset();
+        toggleCreateUserOffcanvas();
+        getUsers();
       })
+      .catch((error) => {
+        console.warn("catch", error.response);
+      });
   }
 
   useEffect(() => {
-    initCreateUserOffcanvas()
-    getUsers()
-  },[])
+    initDeleteUserModal();
+    initCreateUserOffcanvas();
+    getUsers();
+  }, []);
 
   return (
     <>
@@ -59,13 +91,20 @@ function UserPage() {
         <button
           className="btn btn-success btn-sm"
           onClick={toggleCreateUserOffcanvas}
-        >Cadastrar</button>
+        >
+          Cadastrar
+        </button>
       </div>
       <table className="table table-sm table-striped">
         <thead>
           <tr>
             <th>Id</th>
             <th>Nome</th>
+            <th>Sobrenome</th>
+            <th>Nascimento</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -73,10 +112,65 @@ function UserPage() {
             <tr key={index}>
               <td>{user.id}</td>
               <td>{user.name}</td>
+              <td>{user.lastName}</td>
+              <td>{user.birthDate}</td>
+              <td>{user.email}</td>
+              <td>{user.status}</td>
+              <td>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => deleteUserModal(user)}
+                >
+                  Deletar
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <div
+        className="modal fade"
+        id="delete-user-modal"
+        tabIndex="-1"
+        aria-labelledby="delete-user-modal-label"
+        aria-hidden="true"
+      >
+        <div className="modal-dialog">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title" id="delete-user-modal-label">
+                Deletar usuário
+              </h5>
+              <button
+                type="button"
+                className="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div className="modal-body">
+              <p className="text-center">
+                Você está prestes a deletar o usuário:{" "}
+              </p>
+              <h4 className="text-center"> {userDelete.name} </h4>
+              <div className="alert alert-warning text-center">
+                <small>
+                  Esta operação não poderá ser desfeita posteriormente
+                </small>
+              </div>
+            </div>
+            <div className="modal-footer d-flex justify-content-between">
+              <button type="button" className="btn btn-secondary" onClick={toggleDeleteUserModal}>
+                Cancelar
+              </button>
+              <button type="button" className="btn btn-danger" onClick={deleteUser}>
+                Deletar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div
         className="offcanvas offcanvas-start"
