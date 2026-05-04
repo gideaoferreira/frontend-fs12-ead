@@ -186,7 +186,7 @@ function ProductListPage() {
                         <h4 className="text-center">{deleteProductItem.name}</h4>
                         <div className="alert alert-warning text-center">
                             <small>
-                                Esta operação nào poderá ser desfeita posteriormente
+                                Esta operação não poderá ser desfeita posteriormente
                             </small>    
                         </div>    
                     </div>
