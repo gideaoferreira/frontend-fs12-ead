@@ -6,7 +6,9 @@ function AppLayout() {
     return (
     <>
         <AppHeader />
-        <AppContent />
+        <div className="py-3" style={{ backgroundColor: '#e9ecef' }}>
+          <AppContent />
+        </div>
         <AppFooter />
     </>
   )

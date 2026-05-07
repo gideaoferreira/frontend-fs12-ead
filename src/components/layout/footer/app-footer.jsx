@@ -1,7 +1,9 @@
 function AppFooter() {
     return (
-    <>
-      <h3>Footer</h3>
+      <>
+        <p className="text-center">
+          <small className="fw-lighter">Sistema de gerenciamento de ecommerce.</small>
+        </p>
     </>
   )
 }
