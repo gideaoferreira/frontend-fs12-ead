@@ -1,5 +1,6 @@
 import axios from "axios";
 import { Trash, PencilSquare, PlusLg, ThreeDotsVertical, Search } from "react-bootstrap-icons"
+import { useSearchParams } from "react-router-dom"
 import { Modal, Offcanvas } from "bootstrap";
 import { useEffect, useRef, useState } from "react";
 
@@ -7,14 +8,18 @@ function UserPage() {
   const [listUsers, setListUsers] = useState([]);
   const [userDelete, setUserDelete] = useState({});
   const [userUpdate, setUserUpdate] = useState({});
+  const [pageNumberController, setPageNumberController] = useState(1);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [totalPages, setTotalPages] = useState({});
+  const [currentPage, setCurentPage] = useState({});
 
   const deleteUserModalRef = useRef();
   const updateUserOffcanvasRef = useRef()
   const createUserOffcanvasRef = useRef();
 
   function dateToPtBr(data) {
-    const date = new Date(data)
-    return new Intl.DateTimeFormat("pt-BR").format(date)
+    return data.split('-').reverse().join('/')
   }
 
   function initDeleteUserModal() {
@@ -69,15 +74,115 @@ function UserPage() {
       })
   }
 
+  function sortBy(sortBy, sort) {
+    setSearchParams((searchParams) => {
+      searchParams.set("sortBy", sortBy);
+      searchParams.set("sort", sort);
+      return searchParams;
+    });
+
+    getUsers()
+  }
+
+  function search() {
+    const searchForm = document.getElementById('search-form')
+    const formData = new FormData(searchForm)
+    const data = Object.fromEntries(formData)
+
+    setSearchParams((searchParams) => {
+      data.search ? searchParams.set("filter", data.search) : searchParams.delete("filter");
+      return searchParams;
+    });
+
+
+    getUsers()
+  }
+
   function getUsers() {
+    const params = Array.from(searchParams.entries()).join("&").replaceAll(',', '=')
+    let baseUrl = `http://localhost:3000/users?${params}`
+
+    console.log(baseUrl)
+
     axios
-      .get("http://localhost:3000/users")
+      .get(baseUrl)
       .then((response) => {
-        setListUsers(response.data);
+        console.log(response.data)
+        setListUsers(response.data.data);
+        setTotalPages(response.data.pagination.totalPages)
+        setCurentPage(response.data.pagination.currentPage)
       })
       .catch((error) => {
         console.warn(error);
       });
+  }
+
+  function paginate(page) {
+    const filter = searchParams.get('filter') ?? ''
+
+    if (filter !== '') {
+      getUsers(page, 10, filter)
+    }
+
+    if (filter === '' || !filter) {
+      getUsers(page, 10)
+    }
+
+    if (page === 1) {
+      setPageNumberController(1)
+    }
+
+    if (page >= totalPages) {
+      setPageNumberController(totalPages)
+      return
+    }
+    
+    if (page > currentPage) {
+      setPageNumberController(pageNumberController + 1)
+    }
+
+    if (page >= 2 && page < currentPage) {
+      setPageNumberController(page-1)
+    }
+  }
+
+  function next() {
+    const pageParse = Number(searchParams.get('page'))
+    const totalPagesParse = Number(totalPages)
+    
+    if (pageParse >= totalPagesParse) {
+      return
+    }
+
+    getUsers(pageParse + 1)
+    
+    if (pageParse + 1 > currentPage) {
+      setPageNumberController(pageNumberController + 1)
+    }
+
+    if (pageParse + 1 >= 2 && pageParse + 1 < currentPage) {
+      setPageNumberController(pageNumberController-1)
+    }
+  }
+
+  function previous() {
+    const pageParse = Number(searchParams.get('page'))
+    const fistPage = 1
+   
+    if (pageParse <= fistPage) {
+      console.log(pageParse <= fistPage, pageParse, fistPage)
+      return
+    }
+
+    getUsers(pageParse - 1)
+    
+    if (pageParse - 1 > currentPage) {
+      setPageNumberController(pageNumberController + 1)
+    }
+
+    if (pageParse - 1 >= 2 && pageNumberController > 1) {
+      setPageNumberController(pageNumberController-1)
+    }
   }
 
   function updateUser() {
@@ -116,31 +221,37 @@ function UserPage() {
   }
 
   useEffect(() => {
+    const page = searchParams.get('page') ?? 1
+
     initDeleteUserModal();
     initCreateUserOffcanvas();
     initUpdateUserOffcanvas();
     getUsers();
-  }, []);
+    paginate(page)
+
+  }, [searchParams]);
 
   return (
     <>
       <div className="d-flex justify-content-between mb-3">
         <div className="d-flex gap-2">
-          <div class="input-group">
-            <input type="text" class="form-control form-control-sm" placeholder="Pesquise por id, nome ou email" aria-label="Recipient’s username" aria-describedby="button-addon2" />
-            <button class="btn btn-secondary btn-sm" type="button" id="button-addon2">
-              <Search />
-            </button>
+          <div className="input-group">
+            <form id="search-form" className="d-flex gap-1">
+              <input type="text" name="search" className="form-control form-control-sm" placeholder="Pesquise por id, nome ou email" aria-label="Recipient’s username" aria-describedby="button-addon2" />
+              <button className="btn btn-secondary btn-sm" type="button" id="button-addon2" onClick={search}>
+                <Search />
+              </button>
+            </form>
           </div>
-          <div class="dropdown">
-            <button class="btn btn-secondary btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <div className="dropdown">
+            <button className="btn btn-secondary btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
               <ThreeDotsVertical />
             </button>
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="#">Id crescente</a></li>
-              <li><a class="dropdown-item" href="#">Id decrescente</a></li>
-              <li><a class="dropdown-item" href="#">Nome crescente</a></li>
-              <li><a class="dropdown-item" href="#">Nome decrescente</a></li>
+            <ul className="dropdown-menu">
+              <li><button type="button" className="dropdown-item" onClick={() => sortBy('id','ASC')}>Id crescente</button></li>
+              <li><button type="button" className="dropdown-item" onClick={() => sortBy('id','DESC')}>Id decrescente</button></li>
+              <li><button type="button" className="dropdown-item" onClick={() => sortBy('name','ASC')}>Nome crescente</button></li>
+              <li><button type="button" className="dropdown-item" onClick={() => sortBy('name','DESC')}>Nome decrescente</button></li>
             </ul>
           </div>
         </div>
@@ -178,9 +289,9 @@ function UserPage() {
                   </td>
                   <td>{user.email}</td>
                   <td style={{ width: '85px' }}>
-                    { user.status === 'block' && <span class="badge bg-danger" style={{ width:'80px' }}>Danger</span> }
-                    { user.status === 'inactive' && <span class="badge bg-warning text-dark" style={{ width:'80px' }}>Desativado</span> }
-                    { user.status === 'active' && <span class="badge bg-success" style={{ width:'80px' }}>Ativado</span> }
+                    { user.status === 'block' && <span className="badge bg-danger" style={{ width:'80px' }}>Danger</span> }
+                    { user.status === 'inactive' && <span className="badge bg-warning text-dark" style={{ width:'80px' }}>Desativado</span> }
+                    { user.status === 'active' && <span className="badge bg-success" style={{ width:'80px' }}>Ativado</span> }
                   </td>
                   <td>
                     <div className="w-100 d-flex justify-content-end">
@@ -203,12 +314,18 @@ function UserPage() {
             </tbody>
           </table>
           <nav className="d-flex justify-content-center" aria-label="Page navigation example">
-            <ul class="pagination pagination-sm">
-              <li class="page-item"><button className="btn btn-light btn-sm">Anterior</button></li>
-              <li class="page-item"><button class="btn btn-light btn-sm">1</button></li>
-              <li class="page-item"><button class="btn btn-light btn-sm">2</button></li>
-              <li class="page-item"><button class="btn btn-light btn-sm">3</button></li>
-              <li class="page-item"><button class="btn btn-light btn-sm">Próximo</button></li>
+            <ul className="pagination pagination-sm">
+              <li className="page-item"><button className="btn btn-light btn-sm" onClick={() => paginate(1)}>Primeira</button></li>
+              <li className="page-item"><button className="btn btn-light btn-sm" onClick={previous}>Anterior</button></li>
+              {Array.from({ length: 10 }, (v, i) => i + pageNumberController).map((item) => (
+                item <= totalPages ?
+                  <li className="page-item" key={item}>
+                    <button className={ item === currentPage ? 'btn btn-primary btn-sm' : 'btn btn-light btn-sm' } onClick={() => paginate(item)}>{ item } </button>
+                  </li>
+                  : ''
+              ))}
+              <li className="page-item"><button className="btn btn-light btn-sm" onClick={next}>Próximo</button></li>
+              <li className="page-item"><button className="btn btn-light btn-sm" onClick={() => paginate(totalPages)}>Ultima</button></li>
             </ul>
           </nav>
         </div>
